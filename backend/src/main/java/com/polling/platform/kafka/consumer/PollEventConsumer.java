@@ -9,8 +9,10 @@ import com.polling.platform.service.RedisVoteCacheService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -20,8 +22,11 @@ import org.springframework.stereotype.Component;
 public class PollEventConsumer {
 
     private final ObjectMapper objectMapper;
-    private final RedisVoteCacheService cacheService;
     private final EventIdempotencyService idempotencyService;
+
+    @Autowired(required = false)
+    @Nullable
+    private RedisVoteCacheService cacheService;
 
     @KafkaListener(
             topics = KafkaConfig.POLL_CREATED_TOPIC,
@@ -36,7 +41,9 @@ public class PollEventConsumer {
                 event.getEventId(),
                 "POLL_CREATED",
                 record.value(),
-                () -> cacheService.initializePollCache(event.getPollId())
+                () -> {
+                    if (cacheService != null) cacheService.initializePollCache(event.getPollId());
+                }
         );
     }
 

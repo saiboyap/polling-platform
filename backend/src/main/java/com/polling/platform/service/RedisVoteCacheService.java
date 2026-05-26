@@ -3,6 +3,7 @@ package com.polling.platform.service;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -11,6 +12,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Service
+@ConditionalOnProperty(name = "redis.enabled", havingValue = "true")
 @RequiredArgsConstructor
 @Slf4j
 public class RedisVoteCacheService {

@@ -33,7 +33,10 @@ public class PollService {
 
     private final PollRepository pollRepository;
     private final UserRepository userRepository;
-    private final RedisVoteCacheService cacheService;
+
+    @Autowired(required = false)
+    @Nullable
+    private RedisVoteCacheService cacheService;
 
     @Autowired(required = false)
     @Nullable
@@ -82,7 +85,7 @@ public class PollService {
     public Page<PollResponse> getActivePolls(Pageable pageable) {
         return pollRepository.findByStatus(PollStatus.ACTIVE, pageable)
                 .map(poll -> {
-                    Map<String, Long> counts = poll.getPollType() != PollType.FREE_TEXT
+                    Map<String, Long> counts = (cacheService != null && poll.getPollType() != PollType.FREE_TEXT)
                             ? cacheService.getAllVoteCounts(poll.getId().toString())
                             : Map.of();
                     return toPollResponse(poll, counts);
@@ -94,7 +97,7 @@ public class PollService {
         Poll poll = pollRepository.findByIdWithDetails(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Poll", "id", id.toString()));
 
-        Map<String, Long> counts = poll.getPollType() != PollType.FREE_TEXT
+        Map<String, Long> counts = (cacheService != null && poll.getPollType() != PollType.FREE_TEXT)
                 ? cacheService.getAllVoteCounts(id.toString())
                 : Map.of();
         return toPollResponse(poll, counts);

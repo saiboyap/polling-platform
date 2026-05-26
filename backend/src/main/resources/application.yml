@@ -8,6 +8,9 @@ server:
 kafka:
   enabled: ${KAFKA_ENABLED:false}
 
+redis:
+  enabled: ${REDIS_ENABLED:false}
+
 spring:
   application:
     name: polling-platform
@@ -91,9 +94,9 @@ management:
         enabled: true          # exposes /actuator/health/liveness + /readiness for K8s
   health:
     kafka:
-      enabled: ${kafka.enabled}  # only check Kafka health when it is actually enabled
+      enabled: ${kafka.enabled}
     redis:
-      enabled: true
+      enabled: ${redis.enabled}
     livenessstate:
       enabled: true
     readinessstate:

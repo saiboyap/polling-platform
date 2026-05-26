@@ -33,9 +33,15 @@ public class VoteService {
     private final PollOptionRepository pollOptionRepository;
     private final FreeTextVoteRepository freeTextVoteRepository;
     private final UserRepository userRepository;
-    private final RedisVoteCacheService cacheService;
     private final WebSocketEventPublisher webSocketEventPublisher;
-    private final TrendingPollService trendingPollService;
+
+    @Autowired(required = false)
+    @Nullable
+    private RedisVoteCacheService cacheService;
+
+    @Autowired(required = false)
+    @Nullable
+    private TrendingPollService trendingPollService;
 
     @Autowired(required = false)
     @Nullable
@@ -90,10 +96,10 @@ public class VoteService {
         PollOption option = resolveOption(poll, optionId);
 
         voteRepository.save(Vote.builder().poll(poll).user(user).option(option).build());
-        cacheService.incrementVoteCount(poll.getId().toString(), optionId.toString());
-        trendingPollService.recordVote(poll.getId().toString(), 1);
+        if (cacheService != null) cacheService.incrementVoteCount(poll.getId().toString(), optionId.toString());
+        if (trendingPollService != null) trendingPollService.recordVote(poll.getId().toString(), 1);
 
-        Map<String, Long> counts = cacheService.getAllVoteCounts(poll.getId().toString());
+        Map<String, Long> counts = resolvedCounts(poll);
         publishVoteEvents(poll, user.getUsername(), optionId.toString(), counts);
 
         log.info("Single-choice vote: poll={} option={} user={}", poll.getId(), optionId, user.getUsername());
@@ -114,11 +120,11 @@ public class VoteService {
         for (UUID optionId : optionIds) {
             PollOption option = resolveOption(poll, optionId);
             voteRepository.save(Vote.builder().poll(poll).user(user).option(option).build());
-            cacheService.incrementVoteCount(poll.getId().toString(), optionId.toString());
+            if (cacheService != null) cacheService.incrementVoteCount(poll.getId().toString(), optionId.toString());
         }
-        trendingPollService.recordVote(poll.getId().toString(), 1);
+        if (trendingPollService != null) trendingPollService.recordVote(poll.getId().toString(), 1);
 
-        Map<String, Long> counts = cacheService.getAllVoteCounts(poll.getId().toString());
+        Map<String, Long> counts = resolvedCounts(poll);
         String ref = optionIds.stream().map(UUID::toString).collect(Collectors.joining(","));
         publishVoteEvents(poll, user.getUsername(), ref, counts);
 
@@ -208,19 +214,20 @@ public class VoteService {
     // ---------------------------------------------------------------
 
     private Map<String, Long> resolvedCounts(Poll poll) {
-        Map<String, Long> counts = cacheService.getAllVoteCounts(poll.getId().toString());
-        if (counts.isEmpty()) {
-            log.debug("Redis cache miss for poll {}, falling back to DB", poll.getId());
-            List<Object[]> rows = voteRepository.countVotesByOption(poll.getId());
-            counts = new HashMap<>();
-            for (Object[] row : rows) {
-                counts.put(row[0].toString(), (Long) row[1]);
-            }
-            if (!counts.isEmpty()) {
-                cacheService.seedFromDatabase(poll.getId().toString(), counts);
-            }
+        if (cacheService != null) {
+            Map<String, Long> counts = cacheService.getAllVoteCounts(poll.getId().toString());
+            if (!counts.isEmpty()) return counts;
         }
-        return counts;
+        log.debug("Redis unavailable or cache miss for poll {}, falling back to DB", poll.getId());
+        List<Object[]> rows = voteRepository.countVotesByOption(poll.getId());
+        Map<String, Long> dbCounts = new HashMap<>();
+        for (Object[] row : rows) {
+            dbCounts.put(row[0].toString(), (Long) row[1]);
+        }
+        if (cacheService != null && !dbCounts.isEmpty()) {
+            cacheService.seedFromDatabase(poll.getId().toString(), dbCounts);
+        }
+        return dbCounts;
     }
 
     private List<UUID> validateOptionIds(CastVoteRequest request, int min, int max) {
