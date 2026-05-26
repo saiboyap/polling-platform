@@ -12,4 +12,4 @@ COPY --from=builder /app/target/*.jar app.jar
 RUN chown appuser:appgroup app.jar
 USER appuser
 EXPOSE ${PORT:-8080}
-CMD ["java", "-Xms64m", "-Xmx200m", "-XX:+UseSerialGC", "-XX:MaxMetaspaceSize=96m", "-XX:CompressedClassSpaceSize=32m", "-Djava.security.egd=file:/dev/./urandom", "-jar", "app.jar"]
+CMD ["java", "-Xms32m", "-Xmx180m", "-XX:+UseSerialGC", "-XX:MaxMetaspaceSize=160m", "-XX:CompressedClassSpaceSize=64m", "-XX:ReservedCodeCacheSize=32m", "-Djava.security.egd=file:/dev/./urandom", "-jar", "app.jar"]
