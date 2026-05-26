@@ -13,7 +13,9 @@ spring:
     name: polling-platform
 
   datasource:
-    url: ${DATABASE_URL:jdbc:postgresql://polling_user:polling_pass@localhost:5432/polling_db}
+    url: jdbc:postgresql://${PGHOST:localhost}:${PGPORT:5432}/${PGDATABASE:polling_db}?sslmode=${PGSSLMODE:disable}
+    username: ${PGUSER:polling_user}
+    password: ${PGPASSWORD:polling_pass}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 10
