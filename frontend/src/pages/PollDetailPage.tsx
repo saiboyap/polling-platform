@@ -53,7 +53,17 @@ const PollDetailPage: React.FC = () => {
       const freshResults = await pollService.getResults(id!);
       setResults(freshResults);
     } catch (err: unknown) {
-      setVoteError(err instanceof Error ? err.message : 'Failed to submit vote');
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 409) {
+        setVoteError('You have already voted on this poll!');
+        setHasVoted(true);
+        try {
+          const freshResults = await pollService.getResults(id!);
+          setResults(freshResults);
+        } catch { /* ignore secondary failure */ }
+      } else {
+        setVoteError(err instanceof Error ? err.message : 'Failed to submit vote');
+      }
     } finally {
       setIsVoting(false);
     }
