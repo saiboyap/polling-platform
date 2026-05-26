@@ -13,11 +13,11 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        target: 'https://polling-platform-production-180d.up.railway.app',
         changeOrigin: true,
       },
       '/ws': {
-        target: 'http://localhost:8080',
+        target: 'https://polling-platform-production-180d.up.railway.app',
         ws: true,
         changeOrigin: true,
       },
