@@ -9,53 +9,71 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Builds the JDBC URL from Railway's individual PG* variables at startup,
- * before the datasource bean is created. Takes priority over application.yml.
- * Falls back silently when no PG* vars are set (local dev uses YAML defaults).
+ * Configures the datasource URL from Railway's PG* environment variables before
+ * any bean is created. This processor MUST NEVER throw — a crash here aborts
+ * SpringApplication.prepareEnvironment before logging is available.
  *
- * Any exception is caught and printed to stderr — the processor never throws,
- * so a bad env var cannot abort SpringApplication.prepareEnvironment.
+ * Catches Throwable (not just Exception) to survive Error subclasses such as
+ * NoClassDefFoundError or OutOfMemoryError on constrained Railway containers.
  */
 public class DatabaseUrlEnvironmentPostProcessor implements EnvironmentPostProcessor {
 
     @Override
     public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
         try {
-            String host     = env("PGHOST");
-            String port     = env("PGPORT");
-            String database = env("PGDATABASE");
-            String user     = env("PGUSER");
-            String password = env("PGPASSWORD");
-
-            if (host == null || database == null || user == null || password == null) {
-                // No Railway PG vars present — local dev will use application.yml defaults.
-                return;
+            applyDatasourceConfig(environment);
+        } catch (Throwable t) {
+            // Intentionally broad — nothing thrown from here must reach prepareEnvironment.
+            try {
+                System.err.println("[DatabaseUrlPostProcessor] FATAL: unexpected error during env post-processing: "
+                        + t.getClass().getName() + ": " + t.getMessage());
+                t.printStackTrace(System.err);
+            } catch (Throwable ignored) {
+                // Even stderr output can fail (e.g. stream closed) — swallow everything.
             }
-
-            String resolvedPort = (port != null && !port.isEmpty()) ? port : "5432";
-            String jdbcUrl = "jdbc:postgresql://" + host + ":" + resolvedPort + "/" + database + "?sslmode=require";
-
-            Map<String, Object> props = new LinkedHashMap<>();
-            props.put("spring.datasource.url", jdbcUrl);
-            props.put("spring.datasource.username", user);
-            props.put("spring.datasource.password", password);
-
-            environment.getPropertySources()
-                    .addFirst(new MapPropertySource("railwayDatasource", props));
-
-            System.out.println("[DatabaseUrlPostProcessor] Datasource configured from PG* env vars: " + jdbcUrl);
-
-        } catch (Exception e) {
-            // Never let this processor crash prepareEnvironment — log and continue.
-            System.err.println("[DatabaseUrlPostProcessor] Failed to configure datasource from env vars: " + e.getMessage());
-            e.printStackTrace(System.err);
         }
     }
 
-    private static String env(String name) {
-        String value = System.getenv(name);
-        if (value == null) return null;
-        String trimmed = value.trim();
-        return trimmed.isEmpty() ? null : trimmed;
+    private void applyDatasourceConfig(ConfigurableEnvironment environment) {
+        String host     = safeEnv("PGHOST");
+        String port     = safeEnv("PGPORT");
+        String database = safeEnv("PGDATABASE");
+        String user     = safeEnv("PGUSER");
+        String password = safeEnv("PGPASSWORD");
+
+        if (host == null || database == null || user == null || password == null) {
+            // PG* vars absent — local dev falls through to application.yml defaults.
+            System.out.println("[DatabaseUrlPostProcessor] PG* env vars not set, using application.yml datasource defaults.");
+            return;
+        }
+
+        String resolvedPort = (port != null && !port.isEmpty()) ? port : "5432";
+        String jdbcUrl = "jdbc:postgresql://" + host + ":" + resolvedPort + "/" + database + "?sslmode=require";
+
+        Map<String, Object> props = new LinkedHashMap<>();
+        props.put("spring.datasource.url", jdbcUrl);
+        props.put("spring.datasource.username", user);
+        props.put("spring.datasource.password", password);
+
+        environment.getPropertySources().addFirst(new MapPropertySource("railwayDatasource", props));
+
+        System.out.println("[DatabaseUrlPostProcessor] Datasource configured: "
+                + "jdbc:postgresql://" + host + ":" + resolvedPort + "/" + database + "?sslmode=require");
+    }
+
+    /**
+     * Reads an env var, trims whitespace, and returns null for absent or blank values.
+     * Catches SecurityException in case a security manager blocks env access.
+     */
+    private static String safeEnv(String name) {
+        try {
+            String value = System.getenv(name);
+            if (value == null) return null;
+            String trimmed = value.trim();
+            return trimmed.isEmpty() ? null : trimmed;
+        } catch (Throwable t) {
+            System.err.println("[DatabaseUrlPostProcessor] Could not read env var " + name + ": " + t.getMessage());
+            return null;
+        }
     }
 }
