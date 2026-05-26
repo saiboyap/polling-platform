@@ -12,5 +12,4 @@ COPY --from=builder /app/target/*.jar app.jar
 RUN chown appuser:appgroup app.jar
 USER appuser
 EXPOSE 8080
-ENV JAVA_OPTS="-Xms128m -Xmx256m -XX:+UseSerialGC -XX:MaxMetaspaceSize=128m"
-CMD java $JAVA_OPTS -jar app.jar
+CMD ["java", "-Xms64m", "-Xmx200m", "-XX:+UseSerialGC", "-XX:MaxMetaspaceSize=96m", "-XX:CompressedClassSpaceSize=32m", "-Djava.security.egd=file:/dev/./urandom", "-jar", "app.jar"]

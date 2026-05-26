@@ -42,6 +42,8 @@ spring:
         format_sql: true
         jdbc:
           time_zone: UTC
+        temp:
+          use_jdbc_metadata_defaults: false
     open-in-view: false
 
   flyway:
