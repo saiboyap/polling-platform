@@ -50,6 +50,8 @@ const PollDetailPage: React.FC = () => {
       setResults(res);
       setHasVoted(true);
       await refetch();
+      const freshResults = await pollService.getResults(id!);
+      setResults(freshResults);
     } catch (err: unknown) {
       setVoteError(err instanceof Error ? err.message : 'Failed to submit vote');
     } finally {
