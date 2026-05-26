@@ -13,9 +13,7 @@ spring:
     name: polling-platform
 
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/polling_db}
-    username: ${SPRING_DATASOURCE_USERNAME:polling_user}
-    password: ${SPRING_DATASOURCE_PASSWORD:polling_pass}
+    url: ${DATABASE_URL:jdbc:postgresql://polling_user:polling_pass@localhost:5432/polling_db}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 10
