@@ -11,6 +11,7 @@ import com.polling.platform.exception.UnauthorizedException;
 import com.polling.platform.kafka.producer.PollEventProducer;
 import com.polling.platform.repository.PollRepository;
 import com.polling.platform.repository.UserRepository;
+import com.polling.platform.repository.VoteRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -33,6 +35,7 @@ public class PollService {
 
     private final PollRepository pollRepository;
     private final UserRepository userRepository;
+    private final VoteRepository voteRepository;
 
     @Autowired(required = false)
     @Nullable
@@ -85,8 +88,8 @@ public class PollService {
     public Page<PollResponse> getActivePolls(Pageable pageable) {
         return pollRepository.findByStatus(PollStatus.ACTIVE, pageable)
                 .map(poll -> {
-                    Map<String, Long> counts = (cacheService != null && poll.getPollType() != PollType.FREE_TEXT)
-                            ? cacheService.getAllVoteCounts(poll.getId().toString())
+                    Map<String, Long> counts = poll.getPollType() != PollType.FREE_TEXT
+                            ? resolvedCounts(poll.getId())
                             : Map.of();
                     return toPollResponse(poll, counts);
                 });
@@ -97,8 +100,8 @@ public class PollService {
         Poll poll = pollRepository.findByIdWithDetails(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Poll", "id", id.toString()));
 
-        Map<String, Long> counts = (cacheService != null && poll.getPollType() != PollType.FREE_TEXT)
-                ? cacheService.getAllVoteCounts(id.toString())
+        Map<String, Long> counts = poll.getPollType() != PollType.FREE_TEXT
+                ? resolvedCounts(id)
                 : Map.of();
         return toPollResponse(poll, counts);
     }
@@ -140,6 +143,22 @@ public class PollService {
             case MULTI_CHOICE  -> request.getMaxChoices();
             case FREE_TEXT     -> 0;
         };
+    }
+
+    private Map<String, Long> resolvedCounts(UUID pollId) {
+        if (cacheService != null) {
+            Map<String, Long> counts = cacheService.getAllVoteCounts(pollId.toString());
+            if (!counts.isEmpty()) return counts;
+        }
+        List<Object[]> rows = voteRepository.countVotesByOption(pollId);
+        Map<String, Long> dbCounts = new HashMap<>();
+        for (Object[] row : rows) {
+            dbCounts.put(row[0].toString(), (Long) row[1]);
+        }
+        if (cacheService != null && !dbCounts.isEmpty()) {
+            cacheService.seedFromDatabase(pollId.toString(), dbCounts);
+        }
+        return dbCounts;
     }
 
     private PollResponse toPollResponse(Poll poll, Map<String, Long> voteCounts) {

@@ -27,10 +27,11 @@ const PollDetailPage: React.FC = () => {
   const { voteCounts }                      = usePollStore();
   const { isAuthenticated, user }           = useAuthStore();
 
-  const [hasVoted, setHasVoted]     = useState(false);
-  const [isVoting, setIsVoting]     = useState(false);
-  const [voteError, setVoteError]   = useState<string | null>(null);
-  const [results, setResults]       = useState<PollResults | null>(null);
+  const [hasVoted, setHasVoted]         = useState(false);
+  const [alreadyVoted, setAlreadyVoted] = useState(false);
+  const [isVoting, setIsVoting]         = useState(false);
+  const [voteError, setVoteError]       = useState<string | null>(null);
+  const [results, setResults]           = useState<PollResults | null>(null);
 
   const { isConnected, connectionType } = useRealtimeVotes(id ?? null);
 
@@ -55,8 +56,7 @@ const PollDetailPage: React.FC = () => {
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } })?.response?.status;
       if (status === 409) {
-        setVoteError('You have already voted on this poll!');
-        setHasVoted(true);
+        setAlreadyVoted(true);
         try {
           const freshResults = await pollService.getResults(id!);
           setResults(freshResults);
@@ -87,7 +87,7 @@ const PollDetailPage: React.FC = () => {
   const isOwner    = user?.username === poll.createdBy;
   const pollActive = poll.status === 'ACTIVE';
   const badge      = pollTypeBadge[poll.pollType] ?? pollTypeBadge.SINGLE_CHOICE;
-  const showVoting = pollActive && !hasVoted && isAuthenticated;
+  const showVoting = pollActive && !hasVoted && !alreadyVoted && isAuthenticated;
   const showResults = hasVoted || !pollActive || results !== null;
 
   return (
@@ -168,6 +168,16 @@ const PollDetailPage: React.FC = () => {
               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
             </svg>
             Vote recorded! Results update live below.
+          </div>
+        )}
+
+        {/* Already voted banner */}
+        {alreadyVoted && (
+          <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-700 font-medium">
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+            </svg>
+            You have already voted on this poll.
           </div>
         )}
 
