@@ -10,4 +10,4 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /tmp/nginx.conf.template
 EXPOSE 80
 ENTRYPOINT []
-CMD ["/bin/sh", "-c", "envsubst '${PORT}' < /tmp/nginx.conf.template > /etc/nginx/conf.d/default.conf && exec nginx -g 'daemon off;'"]
+CMD ["/bin/sh", "-c", "export PORT=${PORT:-80} && envsubst '${PORT}' < /tmp/nginx.conf.template > /etc/nginx/conf.d/default.conf && exec nginx -g 'daemon off;'"]
