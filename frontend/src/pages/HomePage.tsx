@@ -13,7 +13,7 @@ const HomePage: React.FC = () => {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   useEffect(() => {
-    const interval = setInterval(refetch, 10000);
+    const interval = setInterval(refetch, 60000);
     return () => clearInterval(interval);
   }, [refetch]);
 

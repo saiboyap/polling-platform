@@ -9,6 +9,7 @@ import com.polling.platform.entity.*;
 import com.polling.platform.exception.ResourceNotFoundException;
 import com.polling.platform.exception.UnauthorizedException;
 import com.polling.platform.kafka.producer.PollEventProducer;
+import com.polling.platform.repository.FreeTextVoteRepository;
 import com.polling.platform.repository.PollRepository;
 import com.polling.platform.repository.UserRepository;
 import com.polling.platform.repository.VoteRepository;
@@ -36,6 +37,7 @@ public class PollService {
     private final PollRepository pollRepository;
     private final UserRepository userRepository;
     private final VoteRepository voteRepository;
+    private final FreeTextVoteRepository freeTextVoteRepository;
 
     @Autowired(required = false)
     @Nullable
@@ -81,17 +83,18 @@ public class PollService {
         }
 
         log.info("Poll created: id={} type={} by={}", saved.getId(), saved.getPollType(), username);
-        return toPollResponse(saved, Map.of());
+        return toPollResponse(saved, Map.of(), 0L);
     }
 
     @Transactional(readOnly = true)
     public Page<PollResponse> getActivePolls(Pageable pageable) {
         return pollRepository.findByStatus(PollStatus.ACTIVE, pageable)
                 .map(poll -> {
-                    Map<String, Long> counts = poll.getPollType() != PollType.FREE_TEXT
-                            ? resolvedCounts(poll.getId())
-                            : Map.of();
-                    return toPollResponse(poll, counts);
+                    if (poll.getPollType() == PollType.FREE_TEXT) {
+                        long freeTextTotal = freeTextVoteRepository.countByPoll_Id(poll.getId());
+                        return toPollResponse(poll, Map.of(), freeTextTotal);
+                    }
+                    return toPollResponse(poll, resolvedCounts(poll.getId()), 0L);
                 });
     }
 
@@ -100,10 +103,11 @@ public class PollService {
         Poll poll = pollRepository.findByIdWithDetails(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Poll", "id", id.toString()));
 
-        Map<String, Long> counts = poll.getPollType() != PollType.FREE_TEXT
-                ? resolvedCounts(id)
-                : Map.of();
-        return toPollResponse(poll, counts);
+        if (poll.getPollType() == PollType.FREE_TEXT) {
+            long freeTextTotal = freeTextVoteRepository.countByPoll_Id(id);
+            return toPollResponse(poll, Map.of(), freeTextTotal);
+        }
+        return toPollResponse(poll, resolvedCounts(id), 0L);
     }
 
     @AuditLogged(event = "POLL_CLOSED", entityType = "POLL")
@@ -161,7 +165,7 @@ public class PollService {
         return dbCounts;
     }
 
-    private PollResponse toPollResponse(Poll poll, Map<String, Long> voteCounts) {
+    private PollResponse toPollResponse(Poll poll, Map<String, Long> voteCounts, long freeTextTotal) {
         List<PollOptionResponse> options = poll.getPollType() != PollType.FREE_TEXT
                 ? poll.getOptions().stream()
                         .map(opt -> PollOptionResponse.builder()
@@ -172,7 +176,9 @@ public class PollService {
                         .collect(Collectors.toList())
                 : Collections.emptyList();
 
-        long totalVotes = options.stream().mapToLong(PollOptionResponse::getVoteCount).sum();
+        long totalVotes = poll.getPollType() == PollType.FREE_TEXT
+                ? freeTextTotal
+                : options.stream().mapToLong(PollOptionResponse::getVoteCount).sum();
 
         return PollResponse.builder()
                 .id(poll.getId())

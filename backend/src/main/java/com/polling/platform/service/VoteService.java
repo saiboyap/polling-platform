@@ -153,7 +153,11 @@ public class VoteService {
         if (trendingPollService != null) trendingPollService.recordVote(poll.getId().toString(), 1);
 
         long total = freeTextVoteRepository.countByPoll_Id(poll.getId());
-        webSocketEventPublisher.publishFreeTextUpdate(poll.getId().toString(), total);
+        try {
+            webSocketEventPublisher.publishFreeTextUpdate(poll.getId().toString(), total);
+        } catch (Exception e) {
+            log.warn("WebSocket publish failed for free-text poll {}: {}", poll.getId(), e.getMessage());
+        }
 
         log.info("Free-text vote: poll={} user={}", poll.getId(), user.getUsername());
         return buildFreeTextResults(poll);
