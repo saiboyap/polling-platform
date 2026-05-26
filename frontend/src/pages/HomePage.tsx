@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { usePolls } from '../hooks/usePolls';
 import { PollList } from '../components/poll/PollList';
 import { CreatePollModal } from '../components/poll/CreatePollModal';
@@ -11,6 +11,11 @@ const HomePage: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const { polls, isLoading, error, totalPages, currentPage, refetch } = usePolls(page);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+
+  useEffect(() => {
+    const interval = setInterval(refetch, 10000);
+    return () => clearInterval(interval);
+  }, [refetch]);
 
   const handlePollCreated = (_poll: Poll) => {
     setPage(0);

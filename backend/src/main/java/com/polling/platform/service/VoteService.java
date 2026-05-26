@@ -150,7 +150,7 @@ public class VoteService {
                 .responseText(request.getFreeText().trim())
                 .build();
         freeTextVoteRepository.save(ftv);
-        trendingPollService.recordVote(poll.getId().toString(), 1);
+        if (trendingPollService != null) trendingPollService.recordVote(poll.getId().toString(), 1);
 
         long total = freeTextVoteRepository.countByPoll_Id(poll.getId());
         webSocketEventPublisher.publishFreeTextUpdate(poll.getId().toString(), total);
