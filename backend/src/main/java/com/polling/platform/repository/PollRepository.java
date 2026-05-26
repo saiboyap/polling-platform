@@ -22,9 +22,9 @@ public interface PollRepository extends JpaRepository<Poll, UUID> {
     @Query("SELECT p FROM Poll p JOIN FETCH p.createdBy WHERE p.id IN :ids")
     List<Poll> findAllByIdWithCreatedBy(@org.springframework.data.repository.query.Param("ids") java.util.List<java.util.UUID> ids);
 
-    @Query("SELECT p FROM Poll p JOIN FETCH p.options WHERE p.id = :id")
+    @Query("SELECT p FROM Poll p LEFT JOIN FETCH p.options WHERE p.id = :id")
     Optional<Poll> findByIdWithOptions(UUID id);
 
-    @Query("SELECT p FROM Poll p JOIN FETCH p.createdBy JOIN FETCH p.options WHERE p.id = :id")
+    @Query("SELECT p FROM Poll p JOIN FETCH p.createdBy LEFT JOIN FETCH p.options WHERE p.id = :id")
     Optional<Poll> findByIdWithDetails(UUID id);
 }

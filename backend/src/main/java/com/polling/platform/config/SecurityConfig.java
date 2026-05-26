@@ -22,6 +22,8 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import org.springframework.http.HttpMethod;
+
 import java.util.List;
 
 @Configuration
@@ -41,10 +43,10 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/ws/**").permitAll()
-                        .requestMatchers("/api/polls").permitAll()
-                        .requestMatchers("/api/polls/trending").permitAll()
-                        .requestMatchers("/api/polls/*/results").permitAll()
-                        .requestMatchers("/api/polls/*/stream").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/polls").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/polls/*").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/polls/*/results").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/polls/*/stream").permitAll()
                         // Swagger / OpenAPI UI (public in dev; restrict in prod via separate config)
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html",
                                          "/v3/api-docs/**").permitAll()
