@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <!-- ================================================================
+         Development / default profile: human-readable console output
+         with correlation ID from MDC.
+    ================================================================ -->
+    <springProfile name="!prod">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level [%X{correlationId:--}] %logger{36} - %msg%n</pattern>
+                <charset>UTF-8</charset>
+            </encoder>
+        </appender>
+
+        <logger name="com.polling"              level="DEBUG"/>
+        <logger name="org.springframework.security" level="INFO"/>
+        <logger name="org.springframework.kafka"    level="INFO"/>
+        <logger name="org.hibernate.SQL"            level="DEBUG"/>
+        <logger name="org.hibernate.orm.jdbc.bind"  level="TRACE"/>
+
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+
+    <!-- ================================================================
+         Production profile: structured JSON via logstash-logback-encoder.
+         Each log line is a JSON object parsed by log aggregators (ELK, Loki).
+    ================================================================ -->
+    <springProfile name="prod">
+        <appender name="JSON" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+                <includeContext>false</includeContext>
+                <includeMdc>true</includeMdc>
+                <!-- surfaced as a top-level field so Kibana can filter/group by it -->
+                <mdcKeyFieldName>correlationId=correlation_id</mdcKeyFieldName>
+                <customFields>{"app":"polling-platform"}</customFields>
+            </encoder>
+        </appender>
+
+        <logger name="com.polling"              level="INFO"/>
+        <logger name="org.springframework.security" level="WARN"/>
+        <logger name="org.springframework.kafka"    level="WARN"/>
+
+        <root level="INFO">
+            <appender-ref ref="JSON"/>
+        </root>
+    </springProfile>
+
+</configuration>
