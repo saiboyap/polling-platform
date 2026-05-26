@@ -12,31 +12,50 @@ import java.util.Map;
  * Builds the JDBC URL from Railway's individual PG* variables at startup,
  * before the datasource bean is created. Takes priority over application.yml.
  * Falls back silently when no PG* vars are set (local dev uses YAML defaults).
+ *
+ * Any exception is caught and printed to stderr — the processor never throws,
+ * so a bad env var cannot abort SpringApplication.prepareEnvironment.
  */
 public class DatabaseUrlEnvironmentPostProcessor implements EnvironmentPostProcessor {
 
     @Override
     public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
-        String host     = System.getenv("PGHOST");
-        String port     = System.getenv("PGPORT");
-        String database = System.getenv("PGDATABASE");
-        String user     = System.getenv("PGUSER");
-        String password = System.getenv("PGPASSWORD");
+        try {
+            String host     = env("PGHOST");
+            String port     = env("PGPORT");
+            String database = env("PGDATABASE");
+            String user     = env("PGUSER");
+            String password = env("PGPASSWORD");
 
-        if (host == null || database == null || user == null || password == null) {
-            return;
+            if (host == null || database == null || user == null || password == null) {
+                // No Railway PG vars present — local dev will use application.yml defaults.
+                return;
+            }
+
+            String resolvedPort = (port != null && !port.isEmpty()) ? port : "5432";
+            String jdbcUrl = "jdbc:postgresql://" + host + ":" + resolvedPort + "/" + database + "?sslmode=require";
+
+            Map<String, Object> props = new LinkedHashMap<>();
+            props.put("spring.datasource.url", jdbcUrl);
+            props.put("spring.datasource.username", user);
+            props.put("spring.datasource.password", password);
+
+            environment.getPropertySources()
+                    .addFirst(new MapPropertySource("railwayDatasource", props));
+
+            System.out.println("[DatabaseUrlPostProcessor] Datasource configured from PG* env vars: " + jdbcUrl);
+
+        } catch (Exception e) {
+            // Never let this processor crash prepareEnvironment — log and continue.
+            System.err.println("[DatabaseUrlPostProcessor] Failed to configure datasource from env vars: " + e.getMessage());
+            e.printStackTrace(System.err);
         }
+    }
 
-        String resolvedPort = (port != null && !port.isBlank()) ? port : "5432";
-        String jdbcUrl = String.format(
-                "jdbc:postgresql://%s:%s/%s?sslmode=require", host, resolvedPort, database);
-
-        Map<String, Object> props = new LinkedHashMap<>();
-        props.put("spring.datasource.url", jdbcUrl);
-        props.put("spring.datasource.username", user);
-        props.put("spring.datasource.password", password);
-
-        environment.getPropertySources()
-                .addFirst(new MapPropertySource("railwayDatasource", props));
+    private static String env(String name) {
+        String value = System.getenv(name);
+        if (value == null) return null;
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }
