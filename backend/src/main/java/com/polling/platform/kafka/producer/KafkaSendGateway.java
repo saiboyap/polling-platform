@@ -4,6 +4,7 @@ import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
@@ -15,6 +16,7 @@ import java.util.concurrent.TimeUnit;
  * track real publish failures instead of fire-and-forget losses.
  */
 @Component
+@ConditionalOnProperty(name = "kafka.enabled", havingValue = "true")
 @RequiredArgsConstructor
 @Slf4j
 public class KafkaSendGateway {

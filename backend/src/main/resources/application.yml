@@ -3,6 +3,11 @@ server:
   servlet:
     context-path: /
 
+# Set to true (or via KAFKA_ENABLED env var) to enable Kafka producers/consumers.
+# When false the app starts without a Kafka broker — all publish calls are silently skipped.
+kafka:
+  enabled: ${KAFKA_ENABLED:false}
+
 spring:
   application:
     name: polling-platform
@@ -39,6 +44,9 @@ spring:
 
   kafka:
     bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    admin:
+      auto-create: ${kafka.enabled}   # prevents KafkaAdmin from connecting when Kafka is off
+      fail-fast: false
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
@@ -83,7 +91,7 @@ management:
         enabled: true          # exposes /actuator/health/liveness + /readiness for K8s
   health:
     kafka:
-      enabled: true
+      enabled: ${kafka.enabled}  # only check Kafka health when it is actually enabled
     redis:
       enabled: true
     livenessstate:

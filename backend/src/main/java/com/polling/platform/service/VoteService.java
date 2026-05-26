@@ -14,6 +14,8 @@ import com.polling.platform.repository.*;
 import com.polling.platform.websocket.WebSocketEventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,10 +33,13 @@ public class VoteService {
     private final PollOptionRepository pollOptionRepository;
     private final FreeTextVoteRepository freeTextVoteRepository;
     private final UserRepository userRepository;
-    private final PollEventProducer pollEventProducer;
     private final RedisVoteCacheService cacheService;
     private final WebSocketEventPublisher webSocketEventPublisher;
     private final TrendingPollService trendingPollService;
+
+    @Autowired(required = false)
+    @Nullable
+    private PollEventProducer pollEventProducer;
 
     // ---------------------------------------------------------------
     // Public API
@@ -251,13 +256,15 @@ public class VoteService {
     }
 
     private void publishVoteEvents(Poll poll, String username, String optionRef, Map<String, Long> counts) {
-        pollEventProducer.publishVoteSubmitted(VoteSubmittedEvent.builder()
-                .pollId(poll.getId().toString())
-                .optionId(optionRef)
-                .username(username)
-                .votedAt(LocalDateTime.now())
-                .currentVoteCounts(counts)
-                .build());
+        if (pollEventProducer != null) {
+            pollEventProducer.publishVoteSubmitted(VoteSubmittedEvent.builder()
+                    .pollId(poll.getId().toString())
+                    .optionId(optionRef)
+                    .username(username)
+                    .votedAt(LocalDateTime.now())
+                    .currentVoteCounts(counts)
+                    .build());
+        }
         webSocketEventPublisher.publishVoteUpdate(poll.getId().toString(), counts);
     }
 }

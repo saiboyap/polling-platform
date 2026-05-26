@@ -7,11 +7,13 @@ import com.polling.platform.dto.event.PollCreatedEvent;
 import com.polling.platform.dto.event.VoteSubmittedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.util.UUID;
 
 @Component
+@ConditionalOnProperty(name = "kafka.enabled", havingValue = "true")
 @RequiredArgsConstructor
 @Slf4j
 public class PollEventProducer {

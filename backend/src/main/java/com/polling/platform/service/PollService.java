@@ -13,8 +13,10 @@ import com.polling.platform.repository.PollRepository;
 import com.polling.platform.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,8 +33,11 @@ public class PollService {
 
     private final PollRepository pollRepository;
     private final UserRepository userRepository;
-    private final PollEventProducer pollEventProducer;
     private final RedisVoteCacheService cacheService;
+
+    @Autowired(required = false)
+    @Nullable
+    private PollEventProducer pollEventProducer;
 
     @AuditLogged(event = "POLL_CREATED", entityType = "POLL")
     @Transactional
@@ -60,12 +65,14 @@ public class PollService {
 
         Poll saved = pollRepository.save(poll);
 
-        pollEventProducer.publishPollCreated(PollCreatedEvent.builder()
-                .pollId(saved.getId().toString())
-                .question(saved.getQuestion())
-                .createdBy(username)
-                .createdAt(saved.getCreatedAt())
-                .build());
+        if (pollEventProducer != null) {
+            pollEventProducer.publishPollCreated(PollCreatedEvent.builder()
+                    .pollId(saved.getId().toString())
+                    .question(saved.getQuestion())
+                    .createdBy(username)
+                    .createdAt(saved.getCreatedAt())
+                    .build());
+        }
 
         log.info("Poll created: id={} type={} by={}", saved.getId(), saved.getPollType(), username);
         return toPollResponse(saved, Map.of());
