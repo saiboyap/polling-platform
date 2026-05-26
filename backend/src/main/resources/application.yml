@@ -4,10 +4,6 @@ server:
     context-path: /
   shutdown: graceful
 
-spring:
-  lifecycle:
-    timeout-per-shutdown-phase: 30s
-
 # Set to true (or via KAFKA_ENABLED env var) to enable Kafka producers/consumers.
 # When false the app starts without a Kafka broker — all publish calls are silently skipped.
 kafka:
@@ -17,6 +13,9 @@ redis:
   enabled: ${REDIS_ENABLED:false}
 
 spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
   application:
     name: polling-platform
 
